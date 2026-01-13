@@ -1,20 +1,20 @@
 # OS / General
-.DS_Store
-Thumbs.db
-*.log
-logs/
-tmp/
-temp/
+**/.DS_Store
+**/Thumbs.db
+**/*.log
+**/logs/
+**/tmp/
+**/temp/
 
 # Environment variables
-.env
-.env.*
-!.env.example
+**/.env
+**/.env.*
+**/!.env.example
 
 # Editors
-.idea/
+**/.idea/
 *.iml
-.vscode/
+**/.vscode/
 
 # Java / Spring Boot
 api/target/
