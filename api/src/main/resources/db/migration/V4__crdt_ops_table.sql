@@ -1,0 +1,6 @@
+CREATE TABLE crdt_ops (
+    id UUID PRIMARY KEY,
+    document_id UUID REFERENCES docs(id) NOT NULL,
+    op_json TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);

@@ -1,0 +1,29 @@
+# OS / General
+.DS_Store
+Thumbs.db
+*.log
+logs/
+tmp/
+temp/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Editors
+.idea/
+*.iml
+.vscode/
+
+# Java / Spring Boot
+api/target/
+api/.classpath
+api/.project
+api/.settings/
+api/*.log
+
+# Node / Vite
+web/node_modules/
+web/dist/
+web/.vite/

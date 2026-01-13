@@ -1,0 +1,14 @@
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE docs (
+    id UUID PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    owner_id UUID REFERENCES users(id),
+    content TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
