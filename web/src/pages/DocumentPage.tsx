@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, Navigate, Link } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useParams, Navigate } from "react-router-dom";
+import { useAuth, type User } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,43 +12,20 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-	ArrowLeft,
-	Trash,
-	TextB,
-	TextItalic,
-	TextUnderline,
-	ListDashes,
-	ListNumbers,
-	TextAlignLeft,
-	TextAlignCenter,
-	TextAlignRight,
+	TrashIcon,
 } from "@phosphor-icons/react";
 import { Label } from "@/components/ui/label";
-import AccountPopover from "@/components/user-popover";
-import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { ModeToggle } from "@/components/theme-toggle";
 import { CRDTInstance, type CrdtOp, type InsertOp, type DeleteOp } from "@/lib/crdt";
 import useWebSocketRaw, { ReadyState } from "react-use-websocket";
+import DocumentNavbar from "@/components/document-navbar";
+import type { Document, Invite } from "@/lib/doc";
+import RemoteCaret from "@/components/remote-caret";
+import { AVATAR_COLORS } from "@/lib/avatar-colors";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const useWebSocket = (useWebSocketRaw as any).default ?? useWebSocketRaw;
-
-interface Invite {
-	userId: string;
-	email: string;
-	role: string;
-}
-
-interface Document {
-	id: string;
-	title: string;
-	createdAt: string;
-	owner: {
-		id: string;
-		email: string;
-	};
-}
 
 export default function DocumentPage() {
 	const { id } = useParams<{ id: string }>();
@@ -59,12 +36,15 @@ export default function DocumentPage() {
 	const [newMemberRole, setNewMemberRole] = useState("VIEW");
 	const [inviteError, setInviteError] = useState<string | null>(null);
 	const [activeUserIds, setActiveUserIds] = useState<Set<string>>(new Set());
+	const [colorMapping, setColorMapping] = useState<Record<string, number>>({});
 	const apiUrl = import.meta.env.VITE_API_URL;
 	const wsUrl = import.meta.env.VITE_WS_URL;
 	const editorRef = useRef<HTMLDivElement | null>(null);
 	const crdtRef = useRef<CRDTInstance | null>(null);
 	const lastTextRef = useRef<string>("");
 	const pendingOps = useRef<CrdtOp[]>([]);
+	const lastSentCursorRef = useRef<{ offset: number } | null>(null);
+	const [remoteCursors, setRemoteCursors] = useState<Record<string, { offset: number }>>({});
 
 	const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
 		`${wsUrl}/document/${id}`,
@@ -205,12 +185,23 @@ export default function DocumentPage() {
 						data.type === "currentUsers" &&
 						Array.isArray(data.users)
 					) {
-						setActiveUserIds(new Set(data.users));
+						const newColorMapping: Record<string,number> = {};
+						const newUsers = new Set<string>();
+						for (const user of data.users) {
+							newUsers.add(user.a);
+							newColorMapping[user.a] = user.b.color;
+						}
+						setActiveUserIds(newUsers);
+						setColorMapping(newColorMapping);
 					} else if (data.type === "userEvent") {
 						if (data.action === "join") {
 							setActiveUserIds((prev) => {
 								const next = new Set(prev);
 								next.add(data.userId);
+								setColorMapping((prev) => {
+									prev[data.userId] = data.data.color;
+									return prev;
+								});
 								return next;
 							});
 						} else if (data.action === "leave") {
@@ -222,6 +213,11 @@ export default function DocumentPage() {
 						}
 					} else if (data.type === "insert" || data.type === "delete") {
 						applyRemoteOp(data);
+					} else if (data.type === "caretUpdate") {
+						setRemoteCursors((prev) => ({
+							...prev,
+							[data.data.userId]: { offset: parseInt(data.data.offset) },
+						}));
 					}
 				} catch (e) {
 					console.error("Failed to parse WS message", e);
@@ -238,6 +234,28 @@ export default function DocumentPage() {
 			if (pendingOps.current.length > 0 && readyState === ReadyState.OPEN) {
 				for (const op of pendingOps.current) sendJsonMessage(op);
 				pendingOps.current = [];
+			}
+			const selection = window.getSelection();
+			try {
+				const range = selection?.getRangeAt(0);
+				const rect = range?.getClientRects()?.[0];
+				const x = rect?.left, y = rect?.top;
+				if (x === undefined || y === undefined) return;
+				const pos = document.caretPositionFromPoint(x,y);
+
+				if (pos && readyState === ReadyState.OPEN) {
+					if (lastSentCursorRef.current && lastSentCursorRef.current.offset === pos.offset) {
+						return;
+					}
+					lastSentCursorRef.current = { offset: pos.offset };
+					sendJsonMessage({
+						type: "caretUpdate",
+						...lastSentCursorRef.current,
+					});
+				}
+			} catch (e) {
+				 if (e instanceof DOMException) return;
+				 console.error("Failed to send caret position", e);
 			}
 		}, 200);
 
@@ -424,123 +442,7 @@ export default function DocumentPage() {
 			{/* Main Content Area */}
 			<div className="flex-1 flex flex-col relative min-w-0">
 				{/* Top Navigation Bar */}
-				<header className="h-16 border-b flex items-center justify-between px-8 bg-background/95 backdrop-blur-sm sticky top-0 z-10 transition-colors duration-300">
-					<div className="flex items-center gap-4">
-						<Link to="/dashboard">
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-10 w-10 hover:bg-muted rounded-none"
-								title="Back to Dashboard"
-							>
-								<ArrowLeft size={20} />
-							</Button>
-						</Link>
-						<div className="flex flex-col">
-							<span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-								Document
-							</span>
-							<h1
-								className="text-lg font-semibold leading-none truncate max-w-md"
-								title={docData?.title}
-							>
-								{docData?.title || "Untitled"}
-							</h1>
-						</div>
-					</div>
-
-					<div className="flex items-center gap-1">
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 hover:bg-muted rounded-none"
-						>
-							<TextB size={18} />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 hover:bg-muted rounded-none"
-						>
-							<TextItalic size={18} />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 hover:bg-muted rounded-none"
-						>
-							<TextUnderline size={18} />
-						</Button>
-						<Separator orientation="vertical" className="h-5 mx-1" />
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 hover:bg-muted rounded-none"
-						>
-							<TextAlignLeft size={18} />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 hover:bg-muted rounded-none"
-						>
-							<TextAlignCenter size={18} />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 hover:bg-muted rounded-none"
-						>
-							<TextAlignRight size={18} />
-						</Button>
-						<Separator orientation="vertical" className="h-5 mx-1" />
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 hover:bg-muted rounded-none"
-						>
-							<ListDashes size={18} />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 hover:bg-muted rounded-none"
-						>
-							<ListNumbers size={18} />
-						</Button>
-					</div>
-
-					<div className="flex items-center gap-4">
-						{/* Active Users Avatars */}
-						<div className="mr-2 hidden md:block">
-							<AvatarGroup>
-								{activeUsersList.map((u) => (
-									<Avatar
-										key={u.id}
-										className="h-8 w-8 border-2 border-background ring-2 ring-background"
-										title={u.email}
-									>
-										<AvatarFallback className="text-xs bg-primary text-primary-foreground font-medium opacity-100">
-											{u.email?.[0]?.toUpperCase()}
-										</AvatarFallback>
-									</Avatar>
-								))}
-								{activeUsersList.length === 0 && (
-									<div className="text-xs text-muted-foreground italic mr-2">
-										Offline
-									</div>
-								)}
-							</AvatarGroup>
-						</div>
-
-						<div className="text-xs text-muted-foreground hidden lg:block">
-							Last saved {new Date().toLocaleTimeString()}
-						</div>
-						<Separator orientation="vertical" className="h-6" />
-						<ModeToggle />
-						<AccountPopover />
-					</div>
-				</header>
+				<DocumentNavbar docData={docData} activeUsersList={activeUsersList} colorMapping={colorMapping} />
 
 				<main className="bg-zinc-100 py-10">
 					<div className="mx-auto w-[816px] min-h-[1056px] bg-white shadow-lg px-20 py-24">
@@ -579,7 +481,7 @@ export default function DocumentPage() {
 								className="h-9 rounded-none"
 							/>
 							<div className="flex gap-2">
-								<Select value={newMemberRole} onValueChange={setNewMemberRole}>
+								<Select value={newMemberRole} onValueChange={(v: string | null) => setNewMemberRole(v || "VIEW")}>
 									<SelectTrigger className="h-9 flex-1 rounded-none">
 										<SelectValue />
 									</SelectTrigger>
@@ -666,8 +568,9 @@ export default function DocumentPage() {
 									<div className="flex items-center gap-2 pl-10">
 										<Select
 											value={invite.role}
+											defaultValue={"VIEW"}
 											onValueChange={(val) =>
-												handleUpdateRole(invite.userId, val)
+												handleUpdateRole(invite.userId, val || "VIEW") 
 											}
 										>
 											<SelectTrigger className="h-7 text-[10px] w-20 min-w-0 px-2 rounded-none">
@@ -685,7 +588,7 @@ export default function DocumentPage() {
 											onClick={() => handleRemoveMember(invite.userId)}
 											title="Remove Member"
 										>
-											<Trash size={14} />
+											<TrashIcon size={14} />
 										</Button>
 									</div>
 								</div>
@@ -702,6 +605,12 @@ export default function DocumentPage() {
 						: "..."}
 				</div>
 			</aside>
+
+			{/* Remote Cursors */}
+			{Object.entries(remoteCursors).map(([userId, pos]) => {
+				return (
+				<RemoteCaret key={userId} offset={pos.offset} name={activeUsersList.find(u => u.id === userId)?.email || "Unknown"} color={AVATAR_COLORS[colorMapping[userId]]} editorRef={editorRef} />
+			)})}
 		</div>
 	);
 }

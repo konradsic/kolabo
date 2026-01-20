@@ -25,12 +25,11 @@ public class HttpSessionHandshakeInterceptor implements HandshakeInterceptor {
             WebSocketHandler wsHandler,
             Map<String, Object> attributes
     ) {
-        logger.info("Before handshake");
         if (request instanceof ServletServerHttpRequest servletReq) {
             HttpSession session = servletReq.getServletRequest().getSession(false);
-            logger.info("Before handshake session {} {}", session.getId(), session.getAttribute("user"));
+            logger.trace("Before handshake session {} {}", session.getId(), session.getAttribute("user"));
             if (session.getAttribute("user") == null) {
-                logger.warn("Unauthorized WebSocket connection attempt, closing session...");
+                logger.debug("Unauthorized WebSocket connection attempt, closing session... {}", session.getId());
                 return false;
             }
             attributes.put("HTTP_SESSION", session);

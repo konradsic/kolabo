@@ -1,6 +1,7 @@
 package dev.konradsic.kolabo.model;
 
 import jakarta.persistence.*;
+import org.springframework.data.redis.core.RedisHash;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

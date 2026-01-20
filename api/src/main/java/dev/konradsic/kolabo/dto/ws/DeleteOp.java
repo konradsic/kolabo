@@ -1,4 +1,4 @@
-package dev.konradsic.kolabo.crdt.op;
+package dev.konradsic.kolabo.dto.ws;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 

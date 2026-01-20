@@ -3,14 +3,13 @@ package dev.konradsic.kolabo.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.konradsic.kolabo.crdt.CRDTInstance;
-import dev.konradsic.kolabo.crdt.op.CrdtOp;
+import dev.konradsic.kolabo.dto.ws.CrdtOp;
 import dev.konradsic.kolabo.dao.CrdtOpDao;
 import dev.konradsic.kolabo.model.CrdtOpEntity;
 import dev.konradsic.kolabo.model.Document;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;

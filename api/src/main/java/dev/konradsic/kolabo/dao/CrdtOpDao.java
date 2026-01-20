@@ -2,12 +2,13 @@ package dev.konradsic.kolabo.dao;
 
 import dev.konradsic.kolabo.model.CrdtOpEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.redis.core.RedisHash;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.UUID;
 
-@Repository
+
 public interface CrdtOpDao extends JpaRepository<CrdtOpEntity, UUID> {
 
     List<CrdtOpEntity> findAllByDocumentIdOrderByCreatedAtAsc(UUID docId);

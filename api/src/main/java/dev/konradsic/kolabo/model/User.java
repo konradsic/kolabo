@@ -3,6 +3,7 @@ package dev.konradsic.kolabo.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import org.hibernate.annotations.TimeZoneColumn;
+import org.springframework.data.redis.core.RedisHash;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

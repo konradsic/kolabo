@@ -1,12 +1,10 @@
 package dev.konradsic.kolabo.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.konradsic.kolabo.crdt.CRDTInstance;
 import dev.konradsic.kolabo.crdt.Character;
-import dev.konradsic.kolabo.crdt.op.CrdtOp;
-import dev.konradsic.kolabo.crdt.op.DeleteOp;
-import dev.konradsic.kolabo.crdt.op.InsertOp;
+import dev.konradsic.kolabo.dto.ws.CrdtOp;
+import dev.konradsic.kolabo.dto.ws.DeleteOp;
+import dev.konradsic.kolabo.dto.ws.InsertOp;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 

@@ -1,4 +1,4 @@
-package dev.konradsic.kolabo.crdt.op;
+package dev.konradsic.kolabo.dto.ws;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -9,8 +9,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     property = "type"
 )
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = InsertOp.class, name = "insert"),
-    @JsonSubTypes.Type(value = DeleteOp.class, name = "delete")
+    @JsonSubTypes.Type(value = CrdtOp.class),
+    @JsonSubTypes.Type(value = CaretUpdate.class, name = "caretUpdate")
 })
-public sealed interface CrdtOp permits InsertOp, DeleteOp {}
-
+public sealed interface WsMessage permits CaretUpdate, CrdtOp {}
