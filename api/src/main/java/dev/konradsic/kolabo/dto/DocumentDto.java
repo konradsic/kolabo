@@ -10,5 +10,6 @@ public record DocumentDto (
     String title,
     LocalDateTime createdAt,
     LinkAccessRole linkAccessRole,
-    OwnerDto owner
+    OwnerDto owner,
+    boolean owned
 ) {}

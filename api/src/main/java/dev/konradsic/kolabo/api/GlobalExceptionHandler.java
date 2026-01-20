@@ -20,10 +20,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<Object>> handleRuntimeException(RuntimeException ex, HttpServletRequest request) {
         ResponseStatus responseStatus = AnnotationUtils.findAnnotation(ex.getClass(), ResponseStatus.class);
-        HttpStatus httpStatus = responseStatus != null ? responseStatus.value() : HttpStatus.BAD_REQUEST;
+        HttpStatus httpStatus = responseStatus != null ? responseStatus.value() : HttpStatus.INTERNAL_SERVER_ERROR;
 
         logger.error("Runtime exception occured at route {} : {} [{}]", request.getRequestURI(), ex.getMessage(), httpStatus);
-        ApiResponse<Object> response = new ApiResponse<>(false, ex.getMessage());
+        ApiResponse<Object> response = new ApiResponse<>(false, "Unable to process request");
         return ResponseEntity.status(httpStatus).body(response);
     }
 

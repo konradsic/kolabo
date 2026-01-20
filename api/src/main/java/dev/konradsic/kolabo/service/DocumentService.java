@@ -22,11 +22,9 @@ public class DocumentService {
     private final DocumentDao documentDao;
     private final DocumentMemberDao documentMemberDao;
     private final Logger logger = LoggerFactory.getLogger(DocumentService.class);
-    private final UserService userService;
 
-    public DocumentService(DocumentDao documentDao, UserService userService, DocumentMemberDao documentMemberDao) {
+    public DocumentService(DocumentDao documentDao, DocumentMemberDao documentMemberDao) {
         this.documentDao = documentDao;
-        this.userService = userService;
         this.documentMemberDao = documentMemberDao;
     }
 
@@ -36,8 +34,14 @@ public class DocumentService {
         doc.setTitle(title);
         doc.setOwner(owner);
 
-        logger.info("Creating document with title {} owned by {}", title, owner.getEmail());
+        logger.trace("Creating document with title {} owned by {}", title, owner.getEmail());
         return documentDao.save(doc);
+    }
+
+    @Transactional
+    public Document saveDocument(Document document) {
+        logger.trace("Saving document with title and id {} {}", document.getTitle(), document.getId());
+        return documentDao.save(document);
     }
 
     @Transactional
@@ -79,5 +83,10 @@ public class DocumentService {
 
     public Document getDocumentById(UUID id) {
         return documentDao.findById(id).orElse(null);
+    }
+
+    public List<Document> getInvitedDocuments(User user) {
+        List<DocumentMember> memberships = documentMemberDao.findByUserId(user.getId());
+        return memberships.stream().map(DocumentMember::getDocument).toList();
     }
 }

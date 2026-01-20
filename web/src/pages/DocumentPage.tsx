@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, Navigate } from "react-router-dom";
+import { useParams, Navigate, redirect } from "react-router-dom";
 import { useAuth, type User } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+	LinkIcon,
 	TrashIcon,
 } from "@phosphor-icons/react";
 import { Label } from "@/components/ui/label";
@@ -45,6 +46,8 @@ export default function DocumentPage() {
 	const pendingOps = useRef<CrdtOp[]>([]);
 	const lastSentCursorRef = useRef<{ offset: number } | null>(null);
 	const [remoteCursors, setRemoteCursors] = useState<Record<string, { offset: number }>>({});
+	const [copyButtonText, setCopyButtonText] = useState("Copy Document Link");
+	const copyTimeoutRef = useRef<number | null>(null);
 
 	const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
 		`${wsUrl}/document/${id}`,
@@ -64,6 +67,8 @@ export default function DocumentPage() {
 				if (res.ok) {
 					const json = await res.json();
 					setDocData(json.data || json);
+				} else {
+					return <Navigate to="/dashboard" replace />
 				}
 			} catch (error) {
 				console.error("Failed to fetch document", error);
@@ -432,6 +437,18 @@ export default function DocumentPage() {
 		return ops;
 	};
 
+	const handleCopyDocumentLink = () => {
+		const id = docData?.id;
+		navigator.clipboard.writeText(`${window.location.origin}/dashboard/${id}`);
+		setCopyButtonText("Link Copied!");
+		if (copyTimeoutRef.current) {
+			clearTimeout(copyTimeoutRef.current);
+		}
+		copyTimeoutRef.current = window.setTimeout(() => {
+			setCopyButtonText("Copy Document Link");
+		}, 2000);
+	}
+
 	if (loading) return <Skeleton className="h-full w-full" />;
 	if (!authenticated) return <Navigate to="/login" replace />;
 
@@ -442,7 +459,7 @@ export default function DocumentPage() {
 			{/* Main Content Area */}
 			<div className="flex-1 flex flex-col relative min-w-0">
 				{/* Top Navigation Bar */}
-				<DocumentNavbar docData={docData} activeUsersList={activeUsersList} colorMapping={colorMapping} />
+				<DocumentNavbar docData={docData} activeUsersList={activeUsersList} colorMapping={colorMapping} apiUrl={apiUrl} />
 
 				<main className="bg-zinc-100 py-10">
 					<div className="mx-auto w-[816px] min-h-[1056px] bg-white shadow-lg px-20 py-24">
@@ -502,6 +519,9 @@ export default function DocumentPage() {
 								<p className="text-xs text-destructive">{inviteError}</p>
 							)}
 						</div>
+						<div className="flex">
+							<Button variant="outline" className={"flex-1"} onClick={handleCopyDocumentLink}><LinkIcon /> {copyButtonText}</Button>
+						</div>
 					</div>
 
 					<Separator />
@@ -515,7 +535,7 @@ export default function DocumentPage() {
 						<div className="space-y-3">
 							{/* Owner */}
 							{docData?.owner && (
-								<div className="flex items-center justify-between group">
+								<div className="flex items-center justify-between group ps-2">
 									<div className="flex items-center gap-2 overflow-hidden">
 										<div className="relative">
 											<Avatar className="h-8 w-8 border">
@@ -559,9 +579,6 @@ export default function DocumentPage() {
 										<div className="flex flex-col truncate">
 											<span className="text-sm font-medium truncate">
 												{invite.email || invite.userId}
-											</span>
-											<span className="text-[10px] text-muted-foreground">
-												ID: {invite.userId.substring(0, 8)}...
 											</span>
 										</div>
 									</div>

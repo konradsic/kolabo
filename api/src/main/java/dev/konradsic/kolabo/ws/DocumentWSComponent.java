@@ -54,7 +54,12 @@ public class DocumentWSComponent extends TextWebSocketHandler {
         session.getAttributes().put("userId", userId);
         UUID docId = getDocId(session);
 
-        authorize(userId, docId);
+        try {
+            authorize(userId, docId);
+        } catch (Exception ignored) {
+            session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Unauthorized"));
+            return;
+        }
 
         int color = RandomNumberFromUUID.generateInt(userId, 1, 10);
         docUsers.computeIfAbsent(docId, k -> new ConcurrentHashMap<>()).put(userId, session);

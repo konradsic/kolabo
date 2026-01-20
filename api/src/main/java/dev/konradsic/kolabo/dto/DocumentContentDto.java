@@ -9,7 +9,6 @@ public record DocumentContentDto (
         UUID id,
         String title,
         LocalDateTime createdAt,
-        String content,
         LinkAccessRole linkAccessRole,
         OwnerDto owner
 ) {}

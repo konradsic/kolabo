@@ -32,7 +32,7 @@ public class DocumentController {
     private final DocumentMemberService documentMemberService;
     private final DocumentMemberDao documentMemberDao;
 
-    public DocumentController(UserService userService, DocumentService documentService, DocumentMemberService documentMemberService, DocumentMemberDao documentMemberDao) {
+    public DocumentController(UserService userService, DocumentService documentService, DocumentMemberService documentMemberService, DocumentMemberDao documentMemberDao, DocumentMapper documentMapper) {
         this.userService = userService;
         this.documentService = documentService;
         this.documentMemberService = documentMemberService;
@@ -55,24 +55,68 @@ public class DocumentController {
         ));
     }
 
-    @GetMapping("/owned")
-    public ApiResponse<Object> getOwnedDocuments(HttpSession session) {
+    @GetMapping
+    public ApiResponse<Object> getOwnedOrInvitedToDocuments(HttpSession session) {
         UUID userId = (UUID) session.getAttribute("user");
         if (userId == null) {
             throw new UnauthorizedException("User not logged in");
         }
         User user = userService.findById(userId);
-        var documents = documentService.getOwnedDocuments(user).stream().map(DocumentMapper::toDto).toList();
+        var documents = documentService.getOwnedDocuments(user);
+        var shared = documentService.getInvitedDocuments(user);
+        var concat = DocumentMapper.zipOwnedAndInvited(documents, shared);
 
-        return new ApiResponse<>(true, Map.of("documents", documents));
+        return new ApiResponse<>(true, Map.of("documents", concat));
     }
 
     @GetMapping("/{id}")
     public ApiResponse<DocumentContentDto> getById(@PathVariable UUID id, HttpSession session) {
         UUID userId = (UUID) session.getAttribute("user");
+        Document doc = documentService.getDocumentForUserOrThrow(id, userId);
         return new ApiResponse<>(true, DocumentMapper.toContentDto(
-            documentService.getDocumentForUserOrThrow(id, userId)
+            doc, doc.getOwner().getId() == userId
         ));
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<DocumentContentDto> updateDocumentTitle(
+            @PathVariable("id") UUID documentId,
+            @Valid @RequestBody CreateDocumentRequest body,
+            HttpSession session
+    ) {
+        UUID loggedInUserId = (UUID) session.getAttribute("user");
+        if (loggedInUserId == null) {
+            throw new UnauthorizedException("User not logged in");
+        }
+        Document document = documentService.getDocumentById(documentId);
+        if (document == null) {
+            throw new NotFoundException("Document not found");
+        }
+        if (!document.getOwner().getId().equals(loggedInUserId)) {
+            throw new UnauthorizedException("You're not the owner of this document");
+        }
+
+        document.setTitle(body.getTitle());
+        Document updatedDocument = documentService.saveDocument(document);
+        return new ApiResponse<>(true, DocumentMapper.toContentDto(updatedDocument, document.getOwner().getId() == loggedInUserId));
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Object> deleteDocument(@PathVariable("id") UUID documentId, HttpSession session) {
+        UUID loggedInUserId = (UUID) session.getAttribute("user");
+        if (loggedInUserId == null) {
+            throw new UnauthorizedException("User not logged in");
+        }
+        Document document = documentService.getDocumentById(documentId);
+        if (document == null) {
+            throw new NotFoundException("Document not found");
+        }
+        if (!document.getOwner().getId().equals(loggedInUserId)) {
+            throw new UnauthorizedException("You're not the owner of this document");
+        }
+
+        documentService.deleteDocumentById(documentId);
+        return new ApiResponse<>(true, Map.of("message", "Document deleted successfully"));
     }
 
     @GetMapping("/{id}/invites")
@@ -110,12 +154,12 @@ public class DocumentController {
             throw new NotFoundException("User with email " + body.getEmail() + " not found");
         }
         Document document = documentService.getDocumentForUserOrThrow(documentId, ownerId);
-        
+
         // Ensure the requester is the owner
         if (!document.getOwner().getId().equals(ownerId)) {
             throw new UnauthorizedException("You're not the owner of this document");
         }
-        
+
         documentMemberService.addMemberToDocument(document, user, body.getRole());
         List<DocumentMember> currentMembers = documentMemberDao.findByDocumentId(documentId);
         var dtoCurrentMembers = currentMembers.stream().map(dm -> Map.of(
@@ -173,23 +217,5 @@ public class DocumentController {
         User user = userService.findById(userId);
         documentMemberService.removeMemberFromDocument(document, user);
         return new ApiResponse<>(true, Map.of("message", "User removed from document successfully"));
-    }
-
-    @DeleteMapping("/{id}")
-    public ApiResponse<Object> deleteDocument(@PathVariable("id") UUID documentId, HttpSession session) {
-        UUID loggedInUserId = (UUID) session.getAttribute("user");
-        if (loggedInUserId == null) {
-            throw new UnauthorizedException("User not logged in");
-        }
-        Document document = documentService.getDocumentById(documentId);
-        if (document == null) {
-            throw new NotFoundException("Document not found");
-        }
-        if (!document.getOwner().getId().equals(loggedInUserId)) {
-            throw new UnauthorizedException("You're not the owner of this document");
-        }
-
-        documentService.deleteDocumentById(documentId);
-        return new ApiResponse<>(true, Map.of("message", "Document deleted successfully"));
     }
 }

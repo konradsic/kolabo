@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Navigate, Link } from "react-router-dom";
-import { PlusIcon, FileText, Trash } from "@phosphor-icons/react";
+import { PlusIcon, TrashIcon, FileTextIcon, UsersIcon } from "@phosphor-icons/react";
 import AccountPopover from "@/components/user-popover";
 import {
 	Dialog,
@@ -37,6 +37,7 @@ interface Document {
 		id: string;
 		email: string;
 	};
+	owned: boolean;
 }
 
 export default function Dashboard() {
@@ -49,7 +50,7 @@ export default function Dashboard() {
 	useEffect(() => {
 		const fetchDocuments = async () => {
 			try {
-				const res = await fetch(`${apiUrl}/documents/owned`, {
+				const res = await fetch(`${apiUrl}/documents`, {
 					credentials: "include",
 				});
 				if (res.ok) {
@@ -189,56 +190,59 @@ export default function Dashboard() {
 
 				<div className="mt-6 space-y-2">
 					{Array.isArray(documents) &&
-						documents.map((doc) => (
-							<div
-								key={doc.id}
-								className="flex items-center justify-between p-3 border hover:bg-accent/50 transition-colors"
-							>
-								<div className="flex items-center gap-3">
-									<FileText size={24} className="text-muted-foreground" />
-									<Link
-										to={`/dashboard/${doc.id}`}
-										className="font-medium hover:underline"
-									>
-										{doc.title}
-									</Link>
-								</div>
-								<div className="flex items-center gap-4">
-									<span className="text-sm text-muted-foreground">
-										{formatDate(doc.createdAt)}
-									</span>
-									<AlertDialog>
-										<AlertDialogTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="text-destructive hover:text-destructive hover:bg-destructive/10"
-											>
-												<Trash size={18} />
-											</Button>
-										</AlertDialogTrigger>
-										<AlertDialogContent>
-											<AlertDialogHeader>
-												<AlertDialogTitle>Are you sure?</AlertDialogTitle>
-												<AlertDialogDescription>
-													This action cannot be undone. This will permanently
-													delete the document "{doc.title}".
-												</AlertDialogDescription>
-											</AlertDialogHeader>
-											<AlertDialogFooter>
-												<AlertDialogCancel>Cancel</AlertDialogCancel>
-												<AlertDialogAction
-													onClick={() => handleDeleteDocument(doc.id)}
-													className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						documents.map((doc) => {
+							const Icon = doc.owned ? FileTextIcon : UsersIcon;
+							return (
+								<div
+									key={doc.id}
+									className="flex items-center justify-between p-3 border hover:bg-accent/50 transition-colors"
+								>
+									<div className="flex items-center gap-3">
+										<Icon size={24} className="text-muted-foreground" />
+										<Link
+											to={`/dashboard/${doc.id}`}
+											className="font-medium hover:underline"
+										>
+											{doc.title}
+										</Link>
+										{!doc.owned && <span className="text-xs text-muted-foreground/90 italic">Author: {doc.owner.email}</span>}
+									</div>
+									<div className="flex items-center gap-4">
+										<span className="text-sm text-muted-foreground">
+											{formatDate(doc.createdAt)}
+										</span>
+										<AlertDialog>
+											<AlertDialogTrigger asChild>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="text-destructive hover:text-destructive hover:bg-destructive/10"
 												>
-													Delete
-												</AlertDialogAction>
-											</AlertDialogFooter>
-										</AlertDialogContent>
-									</AlertDialog>
+													<TrashIcon size={18} />
+												</Button>
+											</AlertDialogTrigger>
+											<AlertDialogContent>
+												<AlertDialogHeader>
+													<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+													<AlertDialogDescription>
+														This action cannot be undone. This will permanently
+														delete the document "{doc.title}".
+													</AlertDialogDescription>
+												</AlertDialogHeader>
+												<AlertDialogFooter>
+													<AlertDialogCancel>Cancel</AlertDialogCancel>
+													<AlertDialogAction
+														onClick={() => handleDeleteDocument(doc.id)}
+														className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+													>
+														Delete
+													</AlertDialogAction>
+												</AlertDialogFooter>
+											</AlertDialogContent>
+										</AlertDialog>
+									</div>
 								</div>
-							</div>
-						))}
+						)})}
 					{(!documents || documents.length === 0) && (
 						<div className="text-center text-muted-foreground py-8">
 							No documents found. Create one to get started.
